@@ -1,0 +1,316 @@
+{
+  "topics": [
+    {
+      "week": 1,
+      "title": "Microplastics in de Voedselketen",
+      "category": "Milieu",
+      "startDate": "2025-12-14"
+    },
+    {
+      "week": 2,
+      "title": "Hongersnood in de 21e eeuw",
+      "category": "Sociale Rechtvaardigheid",
+      "startDate": "2025-12-21"
+    },
+    {
+      "week": 3,
+      "title": "School van de Toekomst - Leren 3.0",
+      "category": "Onderwijs",
+      "startDate": "2025-12-28"
+    },
+    {
+      "week": 4,
+      "title": "Plan tot Wereldvrede",
+      "category": "Vrede & Conflict",
+      "startDate": "2026-01-04"
+    },
+    {
+      "week": 5,
+      "title": "Klimaatverandering",
+      "category": "Milieu",
+      "startDate": "2026-01-11"
+    },
+    {
+      "week": 6,
+      "title": "Kinderarmoede Wereldwijd",
+      "category": "Sociale Rechtvaardigheid",
+      "startDate": "2026-01-18"
+    },
+    {
+      "week": 7,
+      "title": "Quantum-Revolutie",
+      "category": "Technologie",
+      "startDate": "2026-01-25"
+    },
+    {
+      "week": 8,
+      "title": "Ocean Cleanup - Plastic Vrij in 2035?",
+      "category": "Milieu",
+      "startDate": "2026-02-01"
+    },
+    {
+      "week": 9,
+      "title": "Verstedelijking en Groen",
+      "category": "Stedenbouw",
+      "startDate": "2026-02-08"
+    },
+    {
+      "week": 10,
+      "title": "Huiselijk Geweld - Het Stille Noodlot",
+      "category": "Sociale Rechtvaardigheid",
+      "startDate": "2026-02-15"
+    },
+    {
+      "week": 11,
+      "title": "Marskolonisatie - Droom of Plicht?",
+      "category": "Ruimtevaart",
+      "startDate": "2026-02-22"
+    },
+    {
+      "week": 12,
+      "title": "Eco-feminisme - Klimaat en Gender",
+      "category": "Sociale Bewegingen",
+      "startDate": "2026-03-01"
+    },
+    {
+      "week": 13,
+      "title": "Circulaire Economie",
+      "category": "Economie",
+      "startDate": "2026-03-08"
+    },
+    {
+      "week": 14,
+      "title": "Oorlog en Vredesonderhandelingen",
+      "category": "Vrede & Conflict",
+      "startDate": "2026-03-15"
+    },
+    {
+      "week": 15,
+      "title": "Brain-Computer Interfaces",
+      "category": "Technologie",
+      "startDate": "2026-03-22"
+    },
+    {
+      "week": 16,
+      "title": "Rewilding - Terug naar de Oertijd?",
+      "category": "Natuur",
+      "startDate": "2026-03-29"
+    },
+    {
+      "week": 17,
+      "title": "Landbouw en Bodem",
+      "category": "Voedsel & Landbouw",
+      "startDate": "2026-04-05"
+    },
+    {
+      "week": 18,
+      "title": "Vluchtelingencrisis en Opvang",
+      "category": "Migratie",
+      "startDate": "2026-04-12"
+    },
+    {
+      "week": 19,
+      "title": "15-Minuten Stad - Leven Dichtbij",
+      "category": "Stedenbouw",
+      "startDate": "2026-04-19"
+    },
+    {
+      "week": 20,
+      "title": "Geluk als Nationale KPI",
+      "category": "Welzijn",
+      "startDate": "2026-04-26"
+    },
+    {
+      "week": 21,
+      "title": "Luchtvervuiling",
+      "category": "Milieu",
+      "startDate": "2026-05-03"
+    },
+    {
+      "week": 22,
+      "title": "Cyberoorlog en Digitale Veiligheid",
+      "category": "Technologie",
+      "startDate": "2026-05-10"
+    },
+    {
+      "week": 23,
+      "title": "Ethische Grenzen van CRISPR",
+      "category": "Bio-ethiek",
+      "startDate": "2026-05-17"
+    },
+    {
+      "week": 24,
+      "title": "Post-groei Economie",
+      "category": "Economie",
+      "startDate": "2026-05-24"
+    },
+    {
+      "week": 25,
+      "title": "Energietransitie",
+      "category": "Energie",
+      "startDate": "2026-05-31"
+    },
+    {
+      "week": 26,
+      "title": "Wapenhandel en Ethiek",
+      "category": "Ethiek",
+      "startDate": "2026-06-07"
+    },
+    {
+      "week": 27,
+      "title": "Smart Cities vs Privacy",
+      "category": "Privacy",
+      "startDate": "2026-06-14"
+    },
+    {
+      "week": 28,
+      "title": "Wereld-vrede-viering 2035",
+      "category": "Visie",
+      "startDate": "2026-06-21"
+    },
+    {
+      "week": 29,
+      "title": "Kernenergie Discussie",
+      "category": "Energie",
+      "startDate": "2026-06-28"
+    },
+    {
+      "week": 30,
+      "title": "Desinformatie en Media-oorlog",
+      "category": "Media",
+      "startDate": "2026-07-05"
+    },
+    {
+      "week": 31,
+      "title": "Groene Hype of Groene Waarheid?",
+      "category": "Milieu",
+      "startDate": "2026-07-12"
+    },
+    {
+      "week": 32,
+      "title": "Levensverlenging - Wie Krijgt de Pil?",
+      "category": "Bio-ethiek",
+      "startDate": "2026-07-19"
+    },
+    {
+      "week": 33,
+      "title": "Watervoorraden",
+      "category": "Resources",
+      "startDate": "2026-07-26"
+    },
+    {
+      "week": 34,
+      "title": "Nationale Identiteit vs Globalisme",
+      "category": "Identiteit",
+      "startDate": "2026-08-02"
+    },
+    {
+      "week": 35,
+      "title": "Data-soevereiniteit - Wie bezit jouw data?",
+      "category": "Privacy",
+      "startDate": "2026-08-09"
+    },
+    {
+      "week": 36,
+      "title": "Space Debris - Ruimteafval Opruimen",
+      "category": "Ruimtevaart",
+      "startDate": "2026-08-16"
+    },
+    {
+      "week": 37,
+      "title": "Smeltende Gletsjers",
+      "category": "Klimaat",
+      "startDate": "2026-08-23"
+    },
+    {
+      "week": 38,
+      "title": "Sociale Ongelijkheid",
+      "category": "Sociale Rechtvaardigheid",
+      "startDate": "2026-08-30"
+    },
+    {
+      "week": 39,
+      "title": "Digital Detox - Leven Zonder Scherm",
+      "category": "Welzijn",
+      "startDate": "2026-09-06"
+    },
+    {
+      "week": 40,
+      "title": "Toekomst van de Religie",
+      "category": "Filosofie",
+      "startDate": "2026-09-13"
+    },
+    {
+      "week": 41,
+      "title": "4-Daagse Werkweek",
+      "category": "Werk",
+      "startDate": "2026-09-20"
+    },
+    {
+      "week": 42,
+      "title": "Biodiversiteit",
+      "category": "Natuur",
+      "startDate": "2026-09-27"
+    },
+    {
+      "week": 43,
+      "title": "Racisme en Systematische Discriminatie",
+      "category": "Sociale Rechtvaardigheid",
+      "startDate": "2026-10-04"
+    },
+    {
+      "week": 44,
+      "title": "Kunstmatige Intelligentie en Werk",
+      "category": "Technologie",
+      "startDate": "2026-10-11"
+    },
+    {
+      "week": 45,
+      "title": "Dierenrechten vs Traditionele Feesten",
+      "category": "Ethiek",
+      "startDate": "2026-10-18"
+    },
+    {
+      "week": 46,
+      "title": "Zeespiegelstijging",
+      "category": "Klimaat",
+      "startDate": "2026-10-25"
+    },
+    {
+      "week": 47,
+      "title": "Gendergelijkheid in 2030",
+      "category": "Sociale Rechtvaardigheid",
+      "startDate": "2026-11-01"
+    },
+    {
+      "week": 48,
+      "title": "Evolutie van de Mensheid",
+      "category": "Toekomstvisie",
+      "startDate": "2026-11-08"
+    },
+    {
+      "week": 49,
+      "title": "Geldslavernij - Schulden Cancelen?",
+      "category": "Financien",
+      "startDate": "2026-11-15"
+    },
+    {
+      "week": 50,
+      "title": "Ethische Robot-rechten",
+      "category": "AI Ethiek",
+      "startDate": "2026-11-22"
+    },
+    {
+      "week": 51,
+      "title": "Extreme Weersomstandigheden",
+      "category": "Klimaat",
+      "startDate": "2026-11-29"
+    },
+    {
+      "week": 52,
+      "title": "Reflectie - Een Jaar Perspectieven",
+      "category": "Meta",
+      "startDate": "2026-12-06"
+    }
+  ]
+}

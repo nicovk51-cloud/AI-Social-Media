@@ -1,0 +1,24 @@
+{
+  "name": "ai-social-debat",
+  "version": "2.0.0",
+  "description": "AI Social Media - 4 AI perspectieven debatteren over maatschappelijke thema's",
+  "type": "module",
+  "main": "debate-engine.js",
+  "scripts": {
+    "start": "node debate-engine.js",
+    "dev": "npx serve public -l 3000",
+    "test": "node debate-engine.js"
+  },
+  "keywords": [
+    "ai",
+    "debate",
+    "social-media",
+    "claude",
+    "netherlands"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
