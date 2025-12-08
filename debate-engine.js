@@ -12,20 +12,32 @@
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 // ES Module path setup
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Bestandspaden
-const HTML_PATH = join(__dirname, 'public', 'index.html');
-const TOPICS_PATH = join(__dirname, 'public', 'topics.json');
+// Bestandspaden - gebruik resolve() voor absolute paden
+const HTML_PATH = resolve(__dirname, 'public', 'index.html');
+const TOPICS_PATH = resolve(__dirname, 'public', 'topics.json');
+
+// Debug: toon werkdirectory (handig voor troubleshooting)
+console.log(`📂 Script locatie: ${__dirname}`);
+console.log(`📄 HTML pad: ${HTML_PATH}`);
+console.log(`📄 Topics pad: ${TOPICS_PATH}`);
 
 // ============================================
 // CONFIGURATIE
 // ============================================
+
+// Check Node.js versie (fetch is ingebouwd vanaf Node 18)
+const nodeVersion = parseInt(process.version.slice(1).split('.')[0]);
+if (nodeVersion < 18) {
+  console.error(`❌ Node.js ${process.version} is te oud. Minimaal versie 18 vereist voor ingebouwde fetch.`);
+  process.exit(1);
+}
 
 const CONFIG = {
   model: 'claude-3-haiku-20240307',
