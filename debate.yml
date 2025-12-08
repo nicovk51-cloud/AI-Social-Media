@@ -1,0 +1,106 @@
+name: AI Debate Schedule
+
+on:
+  schedule:
+    # Tijden in UTC - Amsterdam is UTC+1 (winter) / UTC+2 (zomer)
+    # Winter: trek 1 uur af | Zomer: trek 2 uur af
+    
+    # Zondag 22:00 Amsterdam = 21:00 UTC winter
+    - cron: '0 21 * * 0'
+    
+    # Ma-Vr 08:00 Amsterdam = 07:00 UTC winter
+    - cron: '0 7 * * 1-5'
+    
+    # Ma-Vr 12:00 Amsterdam = 11:00 UTC winter
+    - cron: '0 11 * * 1-5'
+    
+    # Ma-Vr 18:00 Amsterdam = 17:00 UTC winter
+    - cron: '0 17 * * 1-5'
+    
+    # Ma-Vr 22:00 Amsterdam = 21:00 UTC winter
+    - cron: '0 21 * * 1-5'
+    
+    # Zaterdag 22:00 Amsterdam = 21:00 UTC winter
+    - cron: '0 21 * * 6'
+
+  # Handmatig triggeren voor testen
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Forceer uitvoering ongeacht tijd'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  generate-debate-posts:
+    runs-on: ubuntu-latest
+    
+    # Voorkom dubbele runs
+    concurrency:
+      group: debate-engine
+      cancel-in-progress: false
+    
+    steps:
+      # 1. Code ophalen
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          fetch-depth: 1
+      
+      # 2. Node.js setup
+      - name: 🟢 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      # 3. Dependencies installeren (indien nodig)
+      - name: 📦 Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          elif [ -f package.json ]; then
+            npm install
+          fi
+      
+      # 4. Debate engine uitvoeren
+      - name: 🤖 Run Debate Engine
+        run: node debate-engine.js
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TZ: Europe/Amsterdam
+      
+      # 5. Wijzigingen committen
+      - name: 📝 Commit changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "AI Debate Bot"
+          
+          git add -A
+          
+          if git diff --staged --quiet; then
+            echo "📭 Geen wijzigingen om te committen"
+          else
+            TIMESTAMP=$(TZ=Europe/Amsterdam date '+%Y-%m-%d %H:%M')
+            git commit -m "🤖 Debate update: ${TIMESTAMP}"
+            git push
+            echo "✅ Wijzigingen gepushed"
+          fi
+      
+      # 6. Deploy naar Netlify
+      - name: 🚀 Deploy to Netlify
+        uses: nwtgck/actions-netlify@v3.0
+        with:
+          publish-dir: ./public
+          production-branch: main
+          production-deploy: true
+          deploy-message: "🤖 Auto-deploy ${{ github.run_number }}"
+          enable-pull-request-comment: false
+          enable-commit-comment: false
+          enable-commit-status: true
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        timeout-minutes: 5
+        continue-on-error: true
