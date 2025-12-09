@@ -88,6 +88,9 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "AI Debate Bot"
           
+          # Pull eerst de laatste wijzigingen
+          git pull --rebase origin main
+          
           git add -A
           
           if git diff --staged --quiet; then
