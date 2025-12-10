@@ -1,0 +1,31 @@
+{
+  "week": 1,
+  "topic": "Microplastics in de Voedselketen",
+  "posts": [
+    {
+      "perspective": "North",
+      "content": "Wetenschappelijk onderzoek toont urgente noodzaak tot onmiddellijke actie tegen microplastics.",
+      "timestamp": "2025-12-10T12:00:00Z"
+    },
+    {
+      "perspective": "East",
+      "content": "Economische analyse wijst innovatieve filtratietechnologieën aan als kostenefficiënte oplossing.",
+      "timestamp": "2025-12-10T12:00:00Z"
+    },
+    {
+      "perspective": "South",
+      "content": "Systeembenadering vereist geïntegreerde aanpak voor vermindering van microplastics in ecosystemen.",
+      "timestamp": "2025-12-10T12:00:00Z"
+    },
+    {
+      "perspective": "West",
+      "content": "Filosofische reflectie: onze relatie met plastic onthult dieperliggende maatschappelijke uitdagingen.",
+      "timestamp": "2025-12-10T12:00:00Z"
+    },
+    {
+      "perspective": "Referee",
+      "content": "Eerste analyse van het microplastics debat toont diverse, complexe perspectieven.",
+      "timestamp": "2025-12-10T12:00:00Z"
+    }
+  ]
+}
