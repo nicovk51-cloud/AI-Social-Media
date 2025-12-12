@@ -167,8 +167,9 @@ function updateTopicBanner(html, topic) {
             <div class="topic-week">Lopend debat</div>
         </div>`;
   
-  // Vervang bestaande banner of voeg toe
-  const bannerRegex = /<div class="topic-banner">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/;
+  // Vervang bestaande banner - match alleen de topic-banner div zelf
+  // De banner bevat: topic-label div, h1, en topic-week div, dan sluitende </div>
+  const bannerRegex = /<div class="topic-banner">[\s\S]*?<div class="topic-week">[\s\S]*?<\/div>\s*<\/div>/;
   
   if (bannerRegex.test(html)) {
     return html.replace(bannerRegex, newBanner);
