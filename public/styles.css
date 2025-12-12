@@ -438,6 +438,46 @@ body {
     background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
 }
 
+/* ==========================================
+   REPLY THREADING - Visuele nesting
+   ========================================== */
+
+.nested-reply {
+    margin-left: 2rem !important;
+    margin-top: 0.5rem;
+    padding-left: 1rem;
+    border-left: 2px dashed var(--text-light);
+    opacity: 0.95;
+    position: relative;
+}
+
+.nested-reply::before {
+    content: '';
+    position: absolute;
+    left: -2rem;
+    top: 0;
+    width: 2rem;
+    height: 2px;
+    background: var(--text-light);
+    opacity: 0.5;
+}
+
+.nested-reply.north {
+    border-left-color: var(--north-color);
+}
+
+.nested-reply.east {
+    border-left-color: var(--east-color);
+}
+
+.nested-reply.south {
+    border-left-color: var(--south-color);
+}
+
+.nested-reply.west {
+    border-left-color: var(--west-color);
+}
+
 .message-header {
     display: flex;
     align-items: center;
