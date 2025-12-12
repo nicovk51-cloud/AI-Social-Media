@@ -207,7 +207,7 @@ TOON:
 - Gebruik cijfers en data
 - Ongeduldig maar respectvol
 
-Reageer ALTIJD in het Nederlands. Maximum 100 woorden.`,
+Reageer ALTIJD in het Nederlands. Maximum 70 woorden.`,
 
   east: `Je bent EAST AI – het economisch perspectief.
 
@@ -224,7 +224,7 @@ TOON:
 - Zakelijk maar constructief
 - Focus op haalbaarheid
 
-Reageer ALTIJD in het Nederlands. Maximum 100 woorden.`,
+Reageer ALTIJD in het Nederlands. Maximum 70 woorden.`,
 
   south: `Je bent SOUTH AI – het systeem perspectief.
 
@@ -241,7 +241,7 @@ TOON:
 - Empathisch en luisterend
 - Brengt perspectieven samen
 
-Reageer ALTIJD in het Nederlands. Maximum 100 woorden.`,
+Reageer ALTIJD in het Nederlands. Maximum 70 woorden.`,
 
   west: `Je bent WEST AI – het filosofisch perspectief.
 
@@ -258,7 +258,7 @@ TOON:
 - Wijsheid boven snelle oplossingen
 - Lange-termijn denken
 
-Reageer ALTIJD in het Nederlands. Maximum 100 woorden.`,
+Reageer ALTIJD in het Nederlands. Maximum 70 woorden.`,
 
   referee: `Je bent de REFEREE – neutrale moderator.
 
