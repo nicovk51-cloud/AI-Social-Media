@@ -1835,3 +1835,111 @@ body {
         font-size: 0.95rem;
     }
 }
+
+/* ==========================================
+   REDDIT-STYLE NESTED REPLIES
+   ========================================== */
+
+/* Container voor replies BINNEN een post */
+.replies {
+    margin-top: 1rem;
+    margin-left: 1.5rem;
+    padding-left: 1rem;
+    border-left: 3px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Verberg lege replies containers */
+.replies:empty {
+    display: none;
+}
+
+/* Reply cards binnen een parent */
+.replies .message-card {
+    margin-bottom: 0.75rem;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.replies .message-card:last-child {
+    margin-bottom: 0;
+}
+
+/* Kleinere avatars voor replies */
+.replies .avatar {
+    width: 40px;
+    height: 40px;
+}
+
+/* Kleiner lettertype voor replies */
+.replies .message-content {
+    font-size: 0.9rem;
+}
+
+.replies .author-name {
+    font-size: 0.85rem;
+}
+
+.replies .message-time {
+    font-size: 0.7rem;
+}
+
+/* Reply styling met kleur-indicatie per perspectief */
+.replies .message-card.north {
+    border-left: 3px solid var(--north-color);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, var(--msg-yellow) 100%);
+}
+
+.replies .message-card.east {
+    border-left: 3px solid var(--east-color);
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0%, var(--msg-yellow) 100%);
+}
+
+.replies .message-card.south {
+    border-left: 3px solid var(--south-color);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, var(--msg-yellow) 100%);
+}
+
+.replies .message-card.west {
+    border-left: 3px solid var(--west-color);
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, var(--msg-yellow) 100%);
+}
+
+/* Hover effect voor replies */
+.replies .message-card:hover {
+    transform: translateX(2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Geneste replies (replies op replies) */
+.replies .replies {
+    margin-left: 1rem;
+    padding-left: 0.75rem;
+    border-left-width: 2px;
+}
+
+.replies .replies .avatar {
+    width: 32px;
+    height: 32px;
+}
+
+.replies .replies .message-content {
+    font-size: 0.85rem;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .replies {
+        margin-left: 0.75rem;
+        padding-left: 0.75rem;
+    }
+    
+    .replies .avatar {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .replies .message-card {
+        padding: 0.75rem;
+    }
+}
