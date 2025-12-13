@@ -127,9 +127,9 @@ function extractExistingPosts(html) {
 // ============================================
 
 async function callClaude(prompt, maxTokens = CONFIG.defaultMaxTokens) {
-  const apiKey = process.env.CLAUDE_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    throw new Error('❌ CLAUDE_API_KEY environment variable niet ingesteld!');
+    throw new Error('❌ ANTHROPIC_API_KEY environment variable niet ingesteld!');
   }
 
   try {
