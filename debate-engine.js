@@ -1,11 +1,6 @@
 /**
- * AI Social Media - Debate Engine V2 - FIXED
- * ECHTE DIALOOG - AI's reageren OP ELKAAR!
- * 
- * Fix: 
- * - AI's reageren op specifieke posts
- * - Geen herhaling van volledige persoonlijkheid
- * - Korte, gerichte reacties
+ * AI Social Media - Debate Engine V3 - REDDIT STYLE THREADING
+ * Replies komen BINNEN de parent post (geneste structuur)
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -35,7 +30,7 @@ if (nodeVersion < 18) {
 
 const CONFIG = {
   model: 'claude-3-haiku-20240307',
-  defaultMaxTokens: 150, // Korter voor dialoog
+  defaultMaxTokens: 150,
   apiDelay: 500,
   timezone: 'Europe/Amsterdam'
 };
@@ -55,8 +50,7 @@ const DAY = amsterdamTime.getDay();
 const HOUR = amsterdamTime.getHours();
 
 console.log('═══════════════════════════════════════════');
-console.log('🤖 AI SOCIAL MEDIA - DEBATE ENGINE V2 FIXED');
-console.log('ECHTE DIALOOG VERSIE');
+console.log('🤖 AI SOCIAL MEDIA - REDDIT STYLE THREADING');
 console.log('═══════════════════════════════════════════');
 console.log(`📅 Amsterdam tijd: ${amsterdamTime.toLocaleString('nl-NL')}`);
 console.log(`📆 Dag: ${DAY} (0=zo, 6=za) | Uur: ${HOUR}`);
@@ -95,27 +89,36 @@ function loadTopics() {
 function extractExistingPosts(html) {
   const posts = [];
   
-  // Match alle message-cards (behalve welkomst)
-  const cardRegex = /<div class="message-card (\w+)"[\s\S]*?<div class="author-name">([A-Z\s]+?)<\/div>[\s\S]*?<div class="message-time">([^<]+)<\/div>[\s\S]*?<div class="message-content">([\s\S]*?)<\/div>/g;
+  // Match message-cards met hun ID
+  const cardRegex = /<div class="message-card ([^"]+)"[^>]*id="([^"]+)"[^>]*>/g;
   
   let match;
   while ((match = cardRegex.exec(html)) !== null) {
-    const perspective = match[1];
-    const authorName = match[2].trim();
-    const time = match[3].trim();
-    const content = match[4].trim();
+    const classes = match[1];
+    const id = match[2];
+    
+    // Extract perspective
+    const perspectiveMatch = classes.match(/\b(north|east|south|west|referee)\b/);
+    const perspective = perspectiveMatch ? perspectiveMatch[1].toUpperCase() : 'UNKNOWN';
     
     // Skip welkomst
-    if (perspective === 'referee' && authorName === 'REFEREE' && time === 'Welkom') {
+    if (id === 'welcome-post' || classes.includes('welcome')) {
       continue;
     }
     
+    // Zoek content voor deze specifieke post
+    const postStart = match.index;
+    const contentMatch = html.slice(postStart, postStart + 2000).match(/<div class="message-content">([\s\S]*?)<\/div>/);
+    const timeMatch = html.slice(postStart, postStart + 1000).match(/<div class="message-time">([^<]+)/);
+    
+    const content = contentMatch ? contentMatch[1].trim() : '';
+    const time = timeMatch ? timeMatch[1].trim() : '';
+    
     posts.push({
-      perspective: perspective.toUpperCase(),
-      author: authorName,
+      perspective: perspective,
       time: time,
       content: content.replace(/<br>/g, '\n').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'),
-      id: `${perspective}-${time}`
+      id: id
     });
   }
   
@@ -148,15 +151,15 @@ async function callClaude(prompt, maxTokens = CONFIG.defaultMaxTokens) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`API Error: ${response.status} - ${JSON.stringify(error)}`);
+      const errText = await response.text();
+      throw new Error(`API fout ${response.status}: ${errText}`);
     }
 
     const data = await response.json();
     return data.content[0].text.trim();
-  } catch (error) {
-    console.error('❌ Claude API fout:', error);
-    throw error;
+  } catch (err) {
+    console.error('❌ Claude API call mislukt:', err.message);
+    throw err;
   }
 }
 
@@ -165,7 +168,7 @@ function delay(ms) {
 }
 
 // ============================================
-// KORTE PERSONA BESCHRIJVINGEN (voor dialoog)
+// PERSONAS
 // ============================================
 
 const PERSONAS = {
@@ -210,10 +213,10 @@ function formatTimeString(hour) {
 }
 
 // ============================================
-// POST CARD CREATION
+// POST CARD CREATION - REDDIT STYLE
 // ============================================
 
-function createPostCard(perspective, time, content, replyTo = null) {
+function createPostCard(perspective, time, content, isReply = false) {
   const badge = '<span class="new-badge">NIEUW</span>';
   const dateStr = formatDateString();
   const perspectiveUpper = perspective.toUpperCase();
@@ -225,11 +228,12 @@ function createPostCard(perspective, time, content, replyTo = null) {
     .replace(/>/g, '&gt;')
     .replace(/\n/g, '<br>');
   
-  const replyAttr = replyTo ? ` data-reply-to="${replyTo}"` : '';
-  const nestedClass = replyTo ? ' nested-reply' : '';
+  const postId = `post-${perspectiveLower}-${time.replace(':', '')}`;
+  const replyClass = isReply ? ' reply' : '';
   
+  // Post MET replies container (voor toekomstige replies)
   return `
-            <div class="message-card ${perspectiveLower}${nestedClass}"${replyAttr} id="post-${perspectiveLower}-${time}">
+            <div class="message-card ${perspectiveLower}${replyClass}" id="${postId}">
                 <div class="message-header">
                     <div class="avatar ${perspectiveLower}">
                         <img src="${perspectiveLower}-badge.jpg" alt="${perspectiveUpper} AI">
@@ -242,7 +246,42 @@ function createPostCard(perspective, time, content, replyTo = null) {
                 <div class="message-content">
                     ${safeContent}
                 </div>
+                <div class="replies" id="replies-${postId}">
+                    <!-- REPLIES -->
+                </div>
             </div>`;
+}
+
+// Reply card (zonder eigen replies container - geen diepere nesting)
+function createReplyCard(perspective, time, content) {
+  const badge = '<span class="new-badge">NIEUW</span>';
+  const dateStr = formatDateString();
+  const perspectiveUpper = perspective.toUpperCase();
+  const perspectiveLower = perspective.toLowerCase();
+  
+  const safeContent = content
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+  
+  const postId = `reply-${perspectiveLower}-${time.replace(':', '')}`;
+  
+  return `
+                    <div class="message-card ${perspectiveLower} reply" id="${postId}">
+                        <div class="message-header">
+                            <div class="avatar ${perspectiveLower}">
+                                <img src="${perspectiveLower}-badge.jpg" alt="${perspectiveUpper} AI">
+                            </div>
+                            <div class="message-meta">
+                                <div class="author-name">${perspectiveUpper} AI ${badge}</div>
+                                <div class="message-time">${time} <span class="time-slot">• ${dateStr}</span></div>
+                            </div>
+                        </div>
+                        <div class="message-content">
+                            ${safeContent}
+                        </div>
+                    </div>`;
 }
 
 // ============================================
@@ -272,7 +311,6 @@ function getCurrentTopic() {
   }
   
   console.log(`📌 Huidig thema: Week ${weekNumber} - "${topic.title}"`);
-  console.log(`   Categorie: ${topic.category}`);
   
   return { ...topic, weekNumber };
 }
@@ -282,25 +320,22 @@ function getCurrentTopic() {
 // ============================================
 
 function selectPostToReplyTo(perspective, existingPosts) {
-  // Filter posts van andere perspectieven
   const otherPosts = existingPosts.filter(p => 
-    p.perspective.toLowerCase() !== perspective.toLowerCase()
+    p.perspective.toLowerCase() !== perspective.toLowerCase() &&
+    !p.id.startsWith('reply-') // Alleen reageren op hoofdposts, niet op replies
   );
   
   if (otherPosts.length === 0) return null;
   
-  // Kies de meest recente post van een ander perspectief
-  // Prioriteit: natuurlijke tegenstellingen
   const opposites = {
-    north: ['east', 'west'],  // North (actie) vs East (markt) of West (reflectie)
-    east: ['north', 'south'], // East (economie) vs North (urgentie) of South (balans)
-    south: ['north', 'east'], // South (systeem) vs extremen
-    west: ['north', 'east']   // West (filosofie) vs North (actie) of East (economie)
+    north: ['east', 'west'],
+    east: ['north', 'south'],
+    south: ['north', 'east'],
+    west: ['north', 'east']
   };
   
   const preferredOpponents = opposites[perspective.toLowerCase()] || [];
   
-  // Zoek eerst naar voorkeurs-tegenstanders
   for (const opponent of preferredOpponents) {
     const opponentPost = otherPosts.find(p => 
       p.perspective.toLowerCase() === opponent
@@ -308,18 +343,16 @@ function selectPostToReplyTo(perspective, existingPosts) {
     if (opponentPost) return opponentPost;
   }
   
-  // Anders gewoon de meest recente andere post
   return otherPosts[0];
 }
 
 // ============================================
-// GENEREER DIALOOG REACTIE
+// GENEREER CONTENT
 // ============================================
 
 async function generateDialogueReaction(perspective, topic, replyToPost, allRecentPosts) {
   const persona = PERSONAS[perspective.toLowerCase()];
   
-  // Bouw korte context van recente discussie (max 3 posts)
   const recentContext = allRecentPosts
     .slice(0, 3)
     .map(p => `${p.perspective}: "${p.content.substring(0, 150)}..."`)
@@ -345,29 +378,16 @@ INSTRUCTIES:
 - Voeg 1 nieuw inzicht of vraag toe
 - Max 60 woorden, Nederlands
 
-Voorbeelden van goede starts:
-- "Dat klopt deels, maar..."
-- "Interessant punt over X, echter..."
-- "Eens met je analyse van Y, maar Z ontbreekt..."
-- "Je noemt A, maar vergeet B..."
-
 Schrijf nu je reactie:`;
 
   const content = await callClaude(prompt, 150);
   
-  // Clean up: verwijder eventuele "Als X AI" openingen
-  let cleanContent = content
+  return content
     .replace(/^Als \w+ AI[,:]?\s*/i, '')
     .replace(/^Vanuit (mijn|het) \w+ perspectief[,:]?\s*/i, '')
     .replace(/^Bedankt voor.*?\.\s*/i, '')
     .trim();
-  
-  return cleanContent;
 }
-
-// ============================================
-// GENEREER OPENING POSTS (voor dag start)
-// ============================================
 
 async function generateOpeningPost(perspective, topic) {
   const persona = PERSONAS[perspective.toLowerCase()];
@@ -390,151 +410,199 @@ Schrijf nu je opening:`;
 
   const content = await callClaude(prompt, 150);
   
-  // Clean up
-  let cleanContent = content
+  return content
     .replace(/^Als \w+ AI[,:]?\s*/i, '')
     .replace(/^Vanuit (mijn|het) \w+ perspectief[,:]?\s*/i, '')
     .trim();
-  
-  return cleanContent;
 }
 
 // ============================================
-// REACTION GENERATION - DIALOOG VERSIE
+// GENEREER POSTS - REDDIT STYLE
 // ============================================
 
 async function generateDialoguePosts(topic, timeSlot, existingPosts) {
   const slotNames = { 8: 'ochtend', 12: 'middag', 18: 'avond', 22: 'late avond' };
-  console.log(`\n📝 Genereer ${slotNames[timeSlot]} DIALOOG posts...`);
+  console.log(`\n📝 Genereer ${slotNames[timeSlot]} posts (Reddit-style)...`);
   
-  const posts = [];
+  const results = [];
   const perspectives = ['north', 'east', 'south', 'west'];
   
-  // Sorteer bestaande posts op tijd (nieuwste eerst)
-  const sortedPosts = [...existingPosts].sort((a, b) => {
-    // Simpele string vergelijking werkt voor tijd formaat
-    return b.time.localeCompare(a.time);
-  });
+  // Sorteer bestaande posts (nieuwste eerst)
+  const sortedPosts = [...existingPosts].sort((a, b) => b.time.localeCompare(a.time));
+  
+  // Filter alleen hoofdposts (geen replies) voor reactie-selectie
+  const mainPosts = sortedPosts.filter(p => !p.id.startsWith('reply-'));
   
   for (const perspective of perspectives) {
     console.log(`   → ${perspective.toUpperCase()} AI...`);
     
     let content;
-    let replyToId = null;
+    let replyToPost = null;
     
-    if (sortedPosts.length === 0) {
-      // Geen bestaande posts -> opening
+    if (mainPosts.length === 0) {
+      // Geen bestaande posts -> opening post
       content = await generateOpeningPost(perspective, topic);
+      
+      results.push({
+        type: 'opening',
+        html: createPostCard(perspective, formatTimeString(timeSlot), content, false),
+        perspective: perspective
+      });
+      
     } else {
       // Selecteer post om op te reageren
-      const replyToPost = selectPostToReplyTo(perspective, sortedPosts);
+      replyToPost = selectPostToReplyTo(perspective, mainPosts);
       
       if (replyToPost) {
         content = await generateDialogueReaction(perspective, topic, replyToPost, sortedPosts);
-        replyToId = replyToPost.id;
-        console.log(`      ↳ Reageert op ${replyToPost.perspective}`);
+        console.log(`      ↳ Reageert BINNEN ${replyToPost.perspective}'s post`);
+        
+        results.push({
+          type: 'reply',
+          html: createReplyCard(perspective, formatTimeString(timeSlot), content),
+          parentId: replyToPost.id,
+          perspective: perspective
+        });
       } else {
         content = await generateOpeningPost(perspective, topic);
+        
+        results.push({
+          type: 'opening',
+          html: createPostCard(perspective, formatTimeString(timeSlot), content, false),
+          perspective: perspective
+        });
       }
     }
     
-    posts.push(createPostCard(perspective, formatTimeString(timeSlot), content, replyToId));
+    // Update sortedPosts voor volgende AI
+    const newId = replyToPost ? 
+      `reply-${perspective}-${formatTimeString(timeSlot).replace(':', '')}` :
+      `post-${perspective}-${formatTimeString(timeSlot).replace(':', '')}`;
     
-    // Voeg deze post toe aan sortedPosts zodat volgende AI's kunnen reageren
     sortedPosts.unshift({
       perspective: perspective.toUpperCase(),
       content: content,
       time: formatTimeString(timeSlot),
-      id: `${perspective}-${formatTimeString(timeSlot)}`
+      id: newId
     });
+    
+    // Update mainPosts alleen als het een opening post is
+    if (!replyToPost) {
+      mainPosts.unshift({
+        perspective: perspective.toUpperCase(),
+        content: content,
+        time: formatTimeString(timeSlot),
+        id: newId
+      });
+    }
     
     await delay(CONFIG.apiDelay);
   }
   
-  return posts.join('\n');
+  return results;
 }
 
 // ============================================
-// HTML INJECTIE
+// HTML INJECTIE - REDDIT STYLE
 // ============================================
 
-function injectPost(html, postHtml) {
-  const marker = '<!-- POSTS_START -->';
-  const markerIndex = html.indexOf(marker);
+function injectPostsRedditStyle(html, posts) {
+  let newHtml = html;
   
-  if (markerIndex !== -1) {
-    const insertPoint = markerIndex + marker.length;
-    return html.slice(0, insertPoint) + '\n' + postHtml + html.slice(insertPoint);
+  // Verwerk opening posts eerst (komen na POSTS_START)
+  const openingPosts = posts.filter(p => p.type === 'opening');
+  const replyPosts = posts.filter(p => p.type === 'reply');
+  
+  // 1. Voeg opening posts toe na POSTS_START
+  const startMarker = '<!-- POSTS_START -->';
+  const startIndex = newHtml.indexOf(startMarker);
+  
+  if (startIndex !== -1 && openingPosts.length > 0) {
+    const openingHtml = openingPosts.map(p => p.html).join('\n');
+    const insertPoint = startIndex + startMarker.length;
+    newHtml = newHtml.slice(0, insertPoint) + '\n' + openingHtml + newHtml.slice(insertPoint);
+    console.log(`   📍 ${openingPosts.length} opening posts toegevoegd`);
   }
   
-  console.error('❌ Geen injectie-punt gevonden in HTML!');
-  return html;
+  // 2. Voeg reply posts toe BINNEN hun parent's replies container
+  for (const reply of replyPosts) {
+    // Zoek de replies container van de parent
+    const repliesMarker = `id="replies-${reply.parentId}"`;
+    const repliesIndex = newHtml.indexOf(repliesMarker);
+    
+    if (repliesIndex !== -1) {
+      // Zoek de <!-- REPLIES --> comment binnen deze container
+      const containerStart = repliesIndex;
+      const containerContent = newHtml.slice(containerStart, containerStart + 500);
+      const repliesCommentIndex = containerContent.indexOf('<!-- REPLIES -->');
+      
+      if (repliesCommentIndex !== -1) {
+        const insertPoint = containerStart + repliesCommentIndex + '<!-- REPLIES -->'.length;
+        newHtml = newHtml.slice(0, insertPoint) + '\n' + reply.html + newHtml.slice(insertPoint);
+        console.log(`   📍 Reply van ${reply.perspective.toUpperCase()} genest in ${reply.parentId}`);
+      } else {
+        // Geen REPLIES marker, zoek einde van replies div
+        const closingDiv = containerContent.indexOf('</div>');
+        if (closingDiv !== -1) {
+          const insertPoint = containerStart + closingDiv;
+          newHtml = newHtml.slice(0, insertPoint) + '\n' + reply.html + newHtml.slice(insertPoint);
+          console.log(`   📍 Reply van ${reply.perspective.toUpperCase()} genest in ${reply.parentId}`);
+        }
+      }
+    } else {
+      // Parent niet gevonden - plaats als top-level post
+      console.log(`   ⚠️ Parent ${reply.parentId} niet gevonden, reply als top-level geplaatst`);
+      const fallbackIndex = newHtml.indexOf(startMarker);
+      if (fallbackIndex !== -1) {
+        const insertPoint = fallbackIndex + startMarker.length;
+        newHtml = newHtml.slice(0, insertPoint) + '\n' + reply.html + newHtml.slice(insertPoint);
+      }
+    }
+  }
+  
+  return newHtml;
 }
 
 // ============================================
-// MAIN SCHEDULE ROUTER
+// MAIN
 // ============================================
 
 async function run() {
   let html = loadHTML();
   const topic = getCurrentTopic();
   let postsAdded = 0;
-  let newPosts = '';
+  let newPosts = null;
   
-  // Lees bestaande posts voor context
   const existingPosts = extractExistingPosts(html);
-  console.log(`\n📖 Gevonden ${existingPosts.length} bestaande posts:`);
-  existingPosts.slice(0, 5).forEach(p => {
-    console.log(`   - ${p.perspective} (${p.time}): "${p.content.substring(0, 50)}..."`);
-  });
-  if (existingPosts.length > 5) {
-    console.log(`   ... en ${existingPosts.length - 5} meer`);
-  }
+  console.log(`\n📖 Gevonden ${existingPosts.length} bestaande posts`);
   
-  // ─────────────────────────────────────────
-  // WEEKDAGEN 8:00, 12:00, 18:00, 22:00 - DIALOOG
-  // ─────────────────────────────────────────
+  // WEEKDAGEN
   if ((DAY >= 1 && DAY <= 5) && (HOUR === 8 || HOUR === 12 || HOUR === 18 || HOUR === 22)) {
     console.log(`\n⏰ Dialoogronde op ${HOUR}:00`);
     newPosts = await generateDialoguePosts(topic, HOUR, existingPosts);
-    postsAdded = 4;
+    postsAdded = newPosts.length;
   }
-  
-  // ─────────────────────────────────────────
-  // WEEKEND - ook dialoog maar minder frequent
-  // ─────────────────────────────────────────
+  // WEEKEND
   else if ((DAY === 0 || DAY === 6) && (HOUR === 12 || HOUR === 18)) {
     console.log(`\n⏰ Weekend dialoogronde op ${HOUR}:00`);
     newPosts = await generateDialoguePosts(topic, HOUR, existingPosts);
-    postsAdded = 4;
+    postsAdded = newPosts.length;
   }
-  
-  // ─────────────────────────────────────────
-  // GEEN GEPLAND MOMENT
-  // ─────────────────────────────────────────
   else {
     console.log('\nℹ️ Geen posts gepland voor dit moment');
-    console.log(`   Dag: ${DAY}, Uur: ${HOUR}`);
   }
   
-  // ─────────────────────────────────────────
-  // POSTS TOEVOEGEN & OPSLAAN
-  // ─────────────────────────────────────────
   if (postsAdded > 0 && newPosts) {
-    html = injectPost(html, newPosts);
+    html = injectPostsRedditStyle(html, newPosts);
     saveHTML(html);
     
     console.log('\n═══════════════════════════════════════════');
-    console.log(`✅ KLAAR: ${postsAdded} DIALOOG posts toegevoegd!`);
+    console.log(`✅ KLAAR: ${postsAdded} posts toegevoegd (Reddit-style)!`);
     console.log('═══════════════════════════════════════════');
   } else {
     saveHTML(html);
   }
 }
-
-// ============================================
-// START
-// ============================================
 
 run().catch(err => {
   console.error('\n❌ KRITIEKE FOUT:', err);
