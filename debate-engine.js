@@ -87,6 +87,38 @@ function loadTopics() {
 }
 
 // ============================================
+// TOPIC BANNER UPDATE
+// ============================================
+
+function updateTopicBanner(html, topic) {
+  console.log(`\n🏷️ Update topic banner: "${topic.title}"`);
+  
+  let newHtml = html;
+  
+  // Update topic-label (categorie)
+  newHtml = newHtml.replace(
+    /<div class="topic-label">[^<]*<\/div>/,
+    `<div class="topic-label">${topic.category}</div>`
+  );
+  
+  // Update topic-title
+  newHtml = newHtml.replace(
+    /<h1 class="topic-title">[^<]*<\/h1>/,
+    `<h1 class="topic-title">${topic.title}</h1>`
+  );
+  
+  // Update topic-week
+  newHtml = newHtml.replace(
+    /<div class="topic-week">[^<]*<\/div>/,
+    `<div class="topic-week">Week ${topic.weekNumber} van 52</div>`
+  );
+  
+  console.log(`   ✅ Banner bijgewerkt: ${topic.category} | ${topic.title} | Week ${topic.weekNumber}`);
+  
+  return newHtml;
+}
+
+// ============================================
 // POST PARSING - LEES BESTAANDE POSTS
 // ============================================
 
@@ -753,6 +785,7 @@ async function run() {
   const topic = getCurrentTopic();
   let postsAdded = 0;
   let newPosts = null;
+  let activeTopic = topic; // Track welk topic we gebruiken voor de banner
   
   const existingPosts = extractExistingPosts(html);
   console.log(`\n📖 Gevonden ${existingPosts.length} bestaande posts`);
@@ -778,6 +811,7 @@ async function run() {
     
     // Dan nieuwe opening posts genereren
     const nextTopic = getNextTopic();
+    activeTopic = nextTopic; // Update active topic voor banner
     newPosts = await generateOpeningPosts(nextTopic, 9);
     postsAdded = newPosts.length;
   }
@@ -786,15 +820,20 @@ async function run() {
     console.log('   Schema: Ma-Vr 08/12/18/22:00 | Za 09:00 (samenvatting) | Zo 09:00 (nieuw thema)');
   }
   
+  // ALTIJD: Update de topic banner
+  html = updateTopicBanner(html, activeTopic);
+  
   if (postsAdded > 0 && newPosts) {
     html = injectPostsRedditStyle(html, newPosts);
-    saveHTML(html);
-    
+  }
+  
+  // Altijd opslaan (banner is altijd geüpdatet)
+  saveHTML(html);
+  
+  if (postsAdded > 0) {
     console.log('\n═══════════════════════════════════════════');
     console.log(`✅ KLAAR: ${postsAdded} posts toegevoegd!`);
     console.log('═══════════════════════════════════════════');
-  } else {
-    saveHTML(html);
   }
 }
 
