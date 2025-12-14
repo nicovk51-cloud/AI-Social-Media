@@ -1,6 +1,10 @@
 /**
- * AI Social Media - Debate Engine V3 - REDDIT STYLE THREADING
- * Replies komen BINNEN de parent post (geneste structuur)
+ * AI Social Media - Debate Engine V4 - WEEKLY CYCLE
+ * 
+ * Schema:
+ * - Maandag t/m Vrijdag: 08:00, 12:00, 18:00, 22:00 → Dialoog posts
+ * - Zaterdag 09:00 → Referee samenvatting van de week
+ * - Zondag 09:00 → Nieuw thema starten (4 opening posts)
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -50,7 +54,7 @@ const DAY = amsterdamTime.getDay();
 const HOUR = amsterdamTime.getHours();
 
 console.log('═══════════════════════════════════════════');
-console.log('🤖 AI SOCIAL MEDIA - REDDIT STYLE THREADING');
+console.log('🤖 AI SOCIAL MEDIA - WEEKLY CYCLE V4');
 console.log('═══════════════════════════════════════════');
 console.log(`📅 Amsterdam tijd: ${amsterdamTime.toLocaleString('nl-NL')}`);
 console.log(`📆 Dag: ${DAY} (0=zo, 6=za) | Uur: ${HOUR}`);
@@ -284,6 +288,39 @@ function createReplyCard(perspective, time, content) {
                     </div>`;
 }
 
+// Referee samenvatting card
+function createRefereeCard(time, content) {
+  const badge = '<span class="new-badge">SAMENVATTING</span>';
+  const dateStr = formatDateString();
+  
+  const safeContent = content
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+  
+  const postId = `post-referee-${time.replace(':', '')}`;
+  
+  return `
+            <div class="message-card referee" id="${postId}">
+                <div class="message-header">
+                    <div class="avatar referee">
+                        <img src="referee-badge.jpg" alt="REFEREE AI">
+                    </div>
+                    <div class="message-meta">
+                        <div class="author-name">REFEREE AI ${badge}</div>
+                        <div class="message-time">${time} <span class="time-slot">• ${dateStr}</span></div>
+                    </div>
+                </div>
+                <div class="message-content">
+                    ${safeContent}
+                </div>
+                <div class="replies" id="replies-${postId}">
+                    <!-- REPLIES -->
+                </div>
+            </div>`;
+}
+
 // ============================================
 // THEMA BEREKENING
 // ============================================
@@ -311,6 +348,33 @@ function getCurrentTopic() {
   }
   
   console.log(`📌 Huidig thema: Week ${weekNumber} - "${topic.title}"`);
+  
+  return { ...topic, weekNumber };
+}
+
+function getNextTopic() {
+  const topics = loadTopics();
+  const startDate = new Date('2025-12-14T00:00:00');
+  const now = new Date();
+  
+  const diffMs = now - startDate;
+  const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+  let weekNumber = Math.floor(diffDays / 7) + 2; // +2 voor volgende week
+  
+  if (weekNumber < 1) weekNumber = 1;
+  
+  let topic = topics.topics.find(t => t.week === weekNumber);
+  
+  if (!topic) {
+    const cycledWeek = ((weekNumber - 1) % 52) + 1;
+    topic = topics.topics.find(t => t.week === cycledWeek);
+  }
+  
+  if (!topic) {
+    topic = topics.topics[0];
+  }
+  
+  console.log(`📌 Volgend thema: Week ${weekNumber} - "${topic.title}"`);
   
   return { ...topic, weekNumber };
 }
@@ -416,13 +480,66 @@ Schrijf nu je opening:`;
     .trim();
 }
 
+async function generateRefereeSummaryContent(topic, existingPosts) {
+  // Filter alleen posts van deze week (geen referee posts)
+  const debatePosts = existingPosts.filter(p => 
+    p.perspective !== 'REFEREE' && 
+    !p.id.includes('welcome')
+  );
+  
+  if (debatePosts.length === 0) {
+    return "Deze week waren er geen discussies om samen te vatten. Volgende week starten we met een nieuw thema!";
+  }
+  
+  // Groepeer posts per perspectief
+  const byPerspective = {};
+  for (const post of debatePosts) {
+    if (!byPerspective[post.perspective]) {
+      byPerspective[post.perspective] = [];
+    }
+    byPerspective[post.perspective].push(post.content);
+  }
+  
+  // Maak samenvatting per perspectief
+  const summaryParts = Object.entries(byPerspective)
+    .map(([perspective, contents]) => {
+      const combined = contents.slice(0, 3).join(' ').substring(0, 200);
+      return `${perspective}: "${combined}..."`;
+    })
+    .join('\n');
+  
+  const prompt = `Je bent REFEREE AI en geeft een WEEKSAMENVATTING van het debat.
+
+THEMA: "${topic.title}"
+
+STANDPUNTEN DEZE WEEK:
+${summaryParts}
+
+INSTRUCTIES:
+- Vat de belangrijkste argumenten van elke AI samen
+- Benoem punten van overeenstemming
+- Benoem punten van verschil
+- Geef een neutrale conclusie
+- Max 150 woorden, Nederlands
+- Begin NIET met "Als Referee AI..." of introductie
+
+Schrijf nu je samenvatting:`;
+
+  const content = await callClaude(prompt, 300);
+  
+  return content
+    .replace(/^Als Referee AI[,:]?\s*/i, '')
+    .replace(/^Samenvatting[:\s]*/i, '')
+    .trim();
+}
+
 // ============================================
-// GENEREER POSTS - REDDIT STYLE
+// GENEREER POSTS - VERSCHILLENDE TYPES
 // ============================================
 
 async function generateDialoguePosts(topic, timeSlot, existingPosts) {
   const slotNames = { 8: 'ochtend', 12: 'middag', 18: 'avond', 22: 'late avond' };
-  console.log(`\n📝 Genereer ${slotNames[timeSlot]} posts (Reddit-style)...`);
+  console.log(`\n📝 Genereer ${slotNames[timeSlot]} posts (dialoog)...`);
   
   const results = [];
   const perspectives = ['north', 'east', 'south', 'west'];
@@ -502,6 +619,44 @@ async function generateDialoguePosts(topic, timeSlot, existingPosts) {
   return results;
 }
 
+async function generateRefereeSummary(topic, existingPosts) {
+  console.log(`\n📊 Genereer Referee samenvatting...`);
+  
+  const content = await generateRefereeSummaryContent(topic, existingPosts);
+  const timeStr = formatTimeString(9); // 09:00
+  
+  console.log(`   → REFEREE AI samenvatting gemaakt`);
+  
+  return [{
+    type: 'opening',
+    html: createRefereeCard(timeStr, content),
+    perspective: 'referee'
+  }];
+}
+
+async function generateOpeningPosts(topic, timeSlot) {
+  console.log(`\n🆕 Genereer opening posts voor nieuw thema: "${topic.title}"...`);
+  
+  const results = [];
+  const perspectives = ['north', 'east', 'south', 'west'];
+  
+  for (const perspective of perspectives) {
+    console.log(`   → ${perspective.toUpperCase()} AI opening...`);
+    
+    const content = await generateOpeningPost(perspective, topic);
+    
+    results.push({
+      type: 'opening',
+      html: createPostCard(perspective, formatTimeString(timeSlot), content, false),
+      perspective: perspective
+    });
+    
+    await delay(CONFIG.apiDelay);
+  }
+  
+  return results;
+}
+
 // ============================================
 // HTML INJECTIE - REDDIT STYLE
 // ============================================
@@ -564,6 +719,32 @@ function injectPostsRedditStyle(html, posts) {
 }
 
 // ============================================
+// CLEAR POSTS VOOR NIEUWE WEEK
+// ============================================
+
+function clearWeeklyPosts(html) {
+  console.log(`\n🧹 Oude posts verwijderen voor nieuwe week...`);
+  
+  const startMarker = '<!-- POSTS_START -->';
+  const endMarker = '<!-- POSTS_END -->';
+  
+  const startIndex = html.indexOf(startMarker);
+  const endIndex = html.indexOf(endMarker);
+  
+  if (startIndex !== -1 && endIndex !== -1) {
+    // Behoud markers, verwijder alles ertussen
+    const before = html.slice(0, startIndex + startMarker.length);
+    const after = html.slice(endIndex);
+    
+    console.log(`   ✅ Posts sectie geleegd`);
+    return before + '\n            ' + after;
+  }
+  
+  console.log(`   ⚠️ Geen posts markers gevonden`);
+  return html;
+}
+
+// ============================================
 // MAIN
 // ============================================
 
@@ -576,20 +757,33 @@ async function run() {
   const existingPosts = extractExistingPosts(html);
   console.log(`\n📖 Gevonden ${existingPosts.length} bestaande posts`);
   
-  // WEEKDAGEN
+  // WEEKDAGEN (ma-vr) - Dialoog op 08:00, 12:00, 18:00, 22:00
   if ((DAY >= 1 && DAY <= 5) && (HOUR === 8 || HOUR === 12 || HOUR === 18 || HOUR === 22)) {
-    console.log(`\n⏰ Dialoogronde op ${HOUR}:00`);
+    console.log(`\n⏰ Weekdag dialoogronde op ${HOUR}:00`);
     newPosts = await generateDialoguePosts(topic, HOUR, existingPosts);
     postsAdded = newPosts.length;
   }
-  // WEEKEND
-  else if ((DAY === 0 || DAY === 6) && (HOUR === 12 || HOUR === 18)) {
-    console.log(`\n⏰ Weekend dialoogronde op ${HOUR}:00`);
-    newPosts = await generateDialoguePosts(topic, HOUR, existingPosts);
+  // ZATERDAG 09:00 - Referee samenvatting
+  else if (DAY === 6 && HOUR === 9) {
+    console.log(`\n📊 Zaterdag 09:00: Referee samenvatting`);
+    newPosts = await generateRefereeSummary(topic, existingPosts);
+    postsAdded = newPosts.length;
+  }
+  // ZONDAG 09:00 - Nieuw thema starten
+  else if (DAY === 0 && HOUR === 9) {
+    console.log(`\n🆕 Zondag 09:00: Nieuw thema starten`);
+    
+    // Eerst oude posts verwijderen
+    html = clearWeeklyPosts(html);
+    
+    // Dan nieuwe opening posts genereren
+    const nextTopic = getNextTopic();
+    newPosts = await generateOpeningPosts(nextTopic, 9);
     postsAdded = newPosts.length;
   }
   else {
     console.log('\nℹ️ Geen posts gepland voor dit moment');
+    console.log('   Schema: Ma-Vr 08/12/18/22:00 | Za 09:00 (samenvatting) | Zo 09:00 (nieuw thema)');
   }
   
   if (postsAdded > 0 && newPosts) {
@@ -597,7 +791,7 @@ async function run() {
     saveHTML(html);
     
     console.log('\n═══════════════════════════════════════════');
-    console.log(`✅ KLAAR: ${postsAdded} posts toegevoegd (Reddit-style)!`);
+    console.log(`✅ KLAAR: ${postsAdded} posts toegevoegd!`);
     console.log('═══════════════════════════════════════════');
   } else {
     saveHTML(html);
