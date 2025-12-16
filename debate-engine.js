@@ -150,11 +150,23 @@ function extractExistingPosts(html) {
     const content = contentMatch ? contentMatch[1].trim() : '';
     const time = timeMatch ? timeMatch[1].trim() : '';
     
+    // Bepaal parentPostId voor replies (kijk naar de replies-container waar dit in zit)
+    let parentPostId = null;
+    if (id.startsWith('reply-')) {
+      // Zoek achterwaarts naar de parent's replies container
+      const beforePost = html.slice(0, postStart);
+      const repliesContainerMatch = beforePost.match(/id="replies-(post-[^"]+)"[^>]*>\s*(?:<!-- REPLIES -->)?\s*$/);
+      if (repliesContainerMatch) {
+        parentPostId = repliesContainerMatch[1];
+      }
+    }
+    
     posts.push({
       perspective: perspective,
       time: time,
       content: content.replace(/<br>/g, '\n').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'),
-      id: id
+      id: id,
+      parentPostId: parentPostId
     });
   }
   
@@ -415,7 +427,8 @@ function getNextTopic() {
 // SELECTEER POST OM OP TE REAGEREN
 // ============================================
 
-function selectPostToReplyTo(perspective, existingPosts) {
+function selectPostToReplyTo(perspective, existingPosts, newRepliesThisRound = []) {
+  // Filter hoofdposts van ANDERE perspectieven
   const otherPosts = existingPosts.filter(p => 
     p.perspective.toLowerCase() !== perspective.toLowerCase() &&
     !p.id.startsWith('reply-') // Alleen reageren op hoofdposts, niet op replies
@@ -423,6 +436,27 @@ function selectPostToReplyTo(perspective, existingPosts) {
   
   if (otherPosts.length === 0) return null;
   
+  // Tel replies per post uit existingPosts EN nieuwe replies deze ronde
+  const postsWithReplyCount = otherPosts.map(post => {
+    // Tel bestaande replies in HTML (replies hebben parentId in hun ID structuur)
+    const existingReplies = existingPosts.filter(p => 
+      p.id.startsWith('reply-') &&
+      p.parentPostId === post.id
+    ).length;
+    
+    // Tel nieuwe replies die deze ronde al zijn toegevoegd
+    const newReplies = newRepliesThisRound.filter(r => r.parentId === post.id).length;
+    
+    return {
+      ...post,
+      replyCount: existingReplies + newReplies
+    };
+  });
+  
+  // Sorteer op minste replies (laagste eerst)
+  postsWithReplyCount.sort((a, b) => a.replyCount - b.replyCount);
+  
+  // Voorkeur voor bepaalde tegenstanders bij gelijke reply counts
   const opposites = {
     north: ['east', 'west'],
     east: ['north', 'south'],
@@ -431,15 +465,25 @@ function selectPostToReplyTo(perspective, existingPosts) {
   };
   
   const preferredOpponents = opposites[perspective.toLowerCase()] || [];
+  const minReplies = postsWithReplyCount[0].replyCount;
   
+  // Filter posts met het minimum aantal replies
+  const postsWithMinReplies = postsWithReplyCount.filter(p => p.replyCount === minReplies);
+  
+  // Probeer eerst een voorkeurs-tegenstander te vinden met min replies
   for (const opponent of preferredOpponents) {
-    const opponentPost = otherPosts.find(p => 
+    const opponentPost = postsWithMinReplies.find(p => 
       p.perspective.toLowerCase() === opponent
     );
-    if (opponentPost) return opponentPost;
+    if (opponentPost) {
+      console.log(`      📊 Gekozen: ${opponentPost.perspective} (${opponentPost.replyCount} replies, voorkeur)`);
+      return opponentPost;
+    }
   }
   
-  return otherPosts[0];
+  // Anders de post met minste replies
+  console.log(`      📊 Gekozen: ${postsWithMinReplies[0].perspective} (${postsWithMinReplies[0].replyCount} replies)`);
+  return postsWithMinReplies[0];
 }
 
 // ============================================
@@ -582,6 +626,9 @@ async function generateDialoguePosts(topic, timeSlot, existingPosts) {
   // Filter alleen hoofdposts (geen replies) voor reactie-selectie
   const mainPosts = sortedPosts.filter(p => !p.id.startsWith('reply-'));
   
+  // Track nieuwe replies deze ronde voor eerlijke verdeling
+  const newRepliesThisRound = [];
+  
   for (const perspective of perspectives) {
     console.log(`   → ${perspective.toUpperCase()} AI...`);
     
@@ -599,19 +646,24 @@ async function generateDialoguePosts(topic, timeSlot, existingPosts) {
       });
       
     } else {
-      // Selecteer post om op te reageren
-      replyToPost = selectPostToReplyTo(perspective, mainPosts);
+      // Selecteer post om op te reageren (met nieuwe replies deze ronde meegeteld)
+      replyToPost = selectPostToReplyTo(perspective, [...mainPosts, ...existingPosts], newRepliesThisRound);
       
       if (replyToPost) {
         content = await generateDialogueReaction(perspective, topic, replyToPost, sortedPosts);
         console.log(`      ↳ Reageert BINNEN ${replyToPost.perspective}'s post`);
         
-        results.push({
+        const replyResult = {
           type: 'reply',
           html: createReplyCard(perspective, formatTimeString(timeSlot), content),
           parentId: replyToPost.id,
           perspective: perspective
-        });
+        };
+        
+        results.push(replyResult);
+        
+        // Track deze reply voor verdeling naar volgende AI's
+        newRepliesThisRound.push(replyResult);
       } else {
         content = await generateOpeningPost(perspective, topic);
         
@@ -690,59 +742,83 @@ async function generateOpeningPosts(topic, timeSlot) {
 }
 
 // ============================================
-// HTML INJECTIE - REDDIT STYLE
+// HTML INJECTIE - CHRONOLOGISCH (oudste boven, nieuwste onder)
 // ============================================
 
 function injectPostsRedditStyle(html, posts) {
   let newHtml = html;
   
-  // Verwerk opening posts eerst (komen na POSTS_START)
+  // Verwerk opening posts eerst
   const openingPosts = posts.filter(p => p.type === 'opening');
   const replyPosts = posts.filter(p => p.type === 'reply');
   
-  // 1. Voeg opening posts toe na POSTS_START
   const startMarker = '<!-- POSTS_START -->';
-  const startIndex = newHtml.indexOf(startMarker);
+  const endMarker = '<!-- POSTS_END -->';
   
-  if (startIndex !== -1 && openingPosts.length > 0) {
+  // 1. Voeg opening posts toe VOOR POSTS_END (zodat nieuwste onderaan komt)
+  const endIndex = newHtml.indexOf(endMarker);
+  
+  if (endIndex !== -1 && openingPosts.length > 0) {
     const openingHtml = openingPosts.map(p => p.html).join('\n');
-    const insertPoint = startIndex + startMarker.length;
-    newHtml = newHtml.slice(0, insertPoint) + '\n' + openingHtml + newHtml.slice(insertPoint);
-    console.log(`   📍 ${openingPosts.length} opening posts toegevoegd`);
+    // Insert VOOR de end marker
+    newHtml = newHtml.slice(0, endIndex) + openingHtml + '\n            ' + newHtml.slice(endIndex);
+    console.log(`   📍 ${openingPosts.length} opening posts toegevoegd (onderaan)`);
   }
   
-  // 2. Voeg reply posts toe BINNEN hun parent's replies container
+  // 2. Voeg reply posts toe ONDERAAN hun parent's replies container
   for (const reply of replyPosts) {
     // Zoek de replies container van de parent
     const repliesMarker = `id="replies-${reply.parentId}"`;
     const repliesIndex = newHtml.indexOf(repliesMarker);
     
     if (repliesIndex !== -1) {
-      // Zoek de <!-- REPLIES --> comment binnen deze container
+      // Zoek de </div> die de replies container sluit
       const containerStart = repliesIndex;
-      const containerContent = newHtml.slice(containerStart, containerStart + 500);
-      const repliesCommentIndex = containerContent.indexOf('<!-- REPLIES -->');
+      const containerContent = newHtml.slice(containerStart, containerStart + 2000);
       
-      if (repliesCommentIndex !== -1) {
-        const insertPoint = containerStart + repliesCommentIndex + '<!-- REPLIES -->'.length;
-        newHtml = newHtml.slice(0, insertPoint) + '\n' + reply.html + newHtml.slice(insertPoint);
-        console.log(`   📍 Reply van ${reply.perspective.toUpperCase()} genest in ${reply.parentId}`);
+      // Zoek de sluitende </div> van de replies container
+      // We moeten voorbij eventuele geneste reply divs gaan
+      let depth = 1;
+      let searchPos = containerContent.indexOf('>') + 1; // Na de opening tag
+      let closingDivPos = -1;
+      
+      while (depth > 0 && searchPos < containerContent.length) {
+        const nextOpen = containerContent.indexOf('<div', searchPos);
+        const nextClose = containerContent.indexOf('</div>', searchPos);
+        
+        if (nextClose === -1) break;
+        
+        if (nextOpen !== -1 && nextOpen < nextClose) {
+          depth++;
+          searchPos = nextOpen + 4;
+        } else {
+          depth--;
+          if (depth === 0) {
+            closingDivPos = nextClose;
+          }
+          searchPos = nextClose + 6;
+        }
+      }
+      
+      if (closingDivPos !== -1) {
+        const insertPoint = containerStart + closingDivPos;
+        newHtml = newHtml.slice(0, insertPoint) + reply.html + '\n                    ' + newHtml.slice(insertPoint);
+        console.log(`   📍 Reply van ${reply.perspective.toUpperCase()} genest in ${reply.parentId} (onderaan)`);
       } else {
-        // Geen REPLIES marker, zoek einde van replies div
-        const closingDiv = containerContent.indexOf('</div>');
-        if (closingDiv !== -1) {
-          const insertPoint = containerStart + closingDiv;
-          newHtml = newHtml.slice(0, insertPoint) + '\n' + reply.html + newHtml.slice(insertPoint);
-          console.log(`   📍 Reply van ${reply.perspective.toUpperCase()} genest in ${reply.parentId}`);
+        // Fallback: zoek eerste </div>
+        const simpleClose = containerContent.indexOf('</div>');
+        if (simpleClose !== -1) {
+          const insertPoint = containerStart + simpleClose;
+          newHtml = newHtml.slice(0, insertPoint) + reply.html + '\n                    ' + newHtml.slice(insertPoint);
+          console.log(`   📍 Reply van ${reply.perspective.toUpperCase()} genest in ${reply.parentId} (fallback)`);
         }
       }
     } else {
-      // Parent niet gevonden - plaats als top-level post
-      console.log(`   ⚠️ Parent ${reply.parentId} niet gevonden, reply als top-level geplaatst`);
-      const fallbackIndex = newHtml.indexOf(startMarker);
-      if (fallbackIndex !== -1) {
-        const insertPoint = fallbackIndex + startMarker.length;
-        newHtml = newHtml.slice(0, insertPoint) + '\n' + reply.html + newHtml.slice(insertPoint);
+      // Parent niet gevonden - plaats als top-level post ONDERAAN
+      console.log(`   ⚠️ Parent ${reply.parentId} niet gevonden, reply als top-level onderaan geplaatst`);
+      const fallbackEndIndex = newHtml.indexOf(endMarker);
+      if (fallbackEndIndex !== -1) {
+        newHtml = newHtml.slice(0, fallbackEndIndex) + reply.html + '\n            ' + newHtml.slice(fallbackEndIndex);
       }
     }
   }
@@ -802,22 +878,24 @@ async function run() {
     newPosts = await generateRefereeSummary(topic, existingPosts);
     postsAdded = newPosts.length;
   }
-  // ZONDAG 09:00 - Nieuw thema starten
+  // ZONDAG 09:00 - Nieuw thema voorbereiden (alleen clearen en banner, GEEN opening posts)
   else if (DAY === 0 && HOUR === 9) {
-    console.log(`\n🆕 Zondag 09:00: Nieuw thema starten`);
+    console.log(`\n🆕 Zondag 09:00: Nieuw thema voorbereiden`);
     
     // Eerst oude posts verwijderen
     html = clearWeeklyPosts(html);
     
-    // Dan nieuwe opening posts genereren
+    // Update topic voor banner (maandag start het echte debat)
     const nextTopic = getNextTopic();
-    activeTopic = nextTopic; // Update active topic voor banner
-    newPosts = await generateOpeningPosts(nextTopic, 9);
-    postsAdded = newPosts.length;
+    activeTopic = nextTopic;
+    
+    console.log(`   📋 Posts geleegd, banner bijgewerkt naar: "${nextTopic.title}"`);
+    console.log(`   ℹ️ Opening posts worden maandag 08:00 automatisch gegenereerd`);
+    // Geen opening posts - die komen maandag automatisch via generateDialoguePosts
   }
   else {
     console.log('\nℹ️ Geen posts gepland voor dit moment');
-    console.log('   Schema: Ma-Vr 08/12/18/22:00 | Za 09:00 (samenvatting) | Zo 09:00 (nieuw thema)');
+    console.log('   Schema: Ma-Vr 08/12/18/22:00 | Za 09:00 (samenvatting) | Zo 09:00 (reset)');
   }
   
   // ALTIJD: Update de topic banner
