@@ -629,14 +629,19 @@ async function generateDialoguePosts(topic, timeSlot, existingPosts) {
   // Track nieuwe replies deze ronde voor eerlijke verdeling
   const newRepliesThisRound = [];
   
+  // 08:00 = opening posts (niemand reageert)
+  // 12:00, 18:00, 22:00 = reacties op posts met minste replies
+  const isOpeningSlot = (timeSlot === 8);
+  
   for (const perspective of perspectives) {
     console.log(`   → ${perspective.toUpperCase()} AI...`);
     
     let content;
     let replyToPost = null;
     
-    if (mainPosts.length === 0) {
-      // Geen bestaande posts -> opening post
+    if (isOpeningSlot || mainPosts.length === 0) {
+      // 08:00 OF geen bestaande posts -> opening post
+      console.log(`      ↳ Opening post (${isOpeningSlot ? '08:00 slot' : 'geen posts'})`);
       content = await generateOpeningPost(perspective, topic);
       
       results.push({
@@ -646,7 +651,7 @@ async function generateDialoguePosts(topic, timeSlot, existingPosts) {
       });
       
     } else {
-      // Selecteer post om op te reageren (met nieuwe replies deze ronde meegeteld)
+      // 12:00, 18:00, 22:00 -> reageer op post met minste replies
       replyToPost = selectPostToReplyTo(perspective, [...mainPosts, ...existingPosts], newRepliesThisRound);
       
       if (replyToPost) {
@@ -665,6 +670,8 @@ async function generateDialoguePosts(topic, timeSlot, existingPosts) {
         // Track deze reply voor verdeling naar volgende AI's
         newRepliesThisRound.push(replyResult);
       } else {
+        // Fallback: geen geschikte post gevonden om op te reageren
+        console.log(`      ↳ Geen geschikte post om op te reageren, maak opening`);
         content = await generateOpeningPost(perspective, topic);
         
         results.push({
